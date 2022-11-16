@@ -6,9 +6,9 @@ Instructions
 
 Your program should now allow you to create ISubscriber objects, register them using your IPublishSubscribService implementation. You can then create IEvent objects and call your IPublishSubscribService's implementations .publish() method. All handlers subscribed should have their 'handle' methods invoked.
 
-These handlers should be able to create new events (LowStockWarningSubscriber), getting handled after the existing events are handled.
+Note I: Handlers can also create new events, if desired. The events would get handled after all existing events are handled.
 
-Note if subscribes subscribe after an event has already been published, they will not receive that event.
+Note II: If a subscriber subscribes after an event has already been published and consumed, they will not receive that event.
 
 You may make any changes to this codebase as long as you ultimately build a Pub-Sub application capable of handling the existing machine sale and refill events.
 
