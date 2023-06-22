@@ -12,4 +12,9 @@ Note II: If a subscriber subscribes after an event has already been published an
 
 You may make any changes to this codebase as long as you ultimately build a Pub-Sub application capable of handling the existing machine sale and refill events.
 
+Additional credit for using useful abstractions that add to the codebase. This is fairly general, and is here for you to demonstrate your knowledge. Some examples might be 
+(i) using a repository for storing Machines and injecting them into events subscriber
+(ii) using advanced functional concepts like an Maybe
+(iii) and more
+
 Please share your work using a GitHub repository with @proftom.
