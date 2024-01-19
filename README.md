@@ -17,4 +17,4 @@ Additional credit for using useful abstractions that add to the codebase. This i
 (ii) using advanced functional concepts like an Maybe
 (iii) and more
 
-Please share your work using a GitHub repository with @proftom.
+Please share your work using a GitHub repository with @proftom and @Gnoyoyo.
