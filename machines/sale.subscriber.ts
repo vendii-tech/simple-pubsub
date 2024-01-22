@@ -1,7 +1,7 @@
-import { IPublishSubscribeService } from '../interfaces';
+import { IPublishSubscribeService } from '../interfaces/publish.subscribe.service';
 import { ISubscriber } from '../interfaces/subscriber'
 import { Machine } from '../machines/data'
-import { MachineSaleEvent } from '../machines/sale.event'
+import { IMachineSaleEvent } from '../machines/sale.event'
 import { MachineStockEvent } from './stock.event';
 
 export class MachineSaleSubscriber implements ISubscriber {
@@ -11,7 +11,7 @@ export class MachineSaleSubscriber implements ISubscriber {
     this.machines = machines; 
   }
 
-  handle(event: MachineSaleEvent): void {
+  handle(event: IMachineSaleEvent): void {
     const theMachine = this.machines.find((machine) => machine.id === event.machineId())
 
     if (theMachine) {

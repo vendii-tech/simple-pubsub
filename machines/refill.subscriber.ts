@@ -1,6 +1,7 @@
-import { ISubscriber, IEvent, IPublishSubscribeService } from '../interfaces/index'
+import { ISubscriber } from '../interfaces/subscriber'
+import { IPublishSubscribeService } from '../interfaces/publish.subscribe.service'
 import { Machine } from './data';
-import { MachineRefillEvent } from './refill.event';
+import { IMachineRefillEvent } from './refill.event';
 import { MachineStockEvent } from './stock.event';
 
 export class MachineRefillSubscriber implements ISubscriber {
@@ -14,7 +15,7 @@ export class MachineRefillSubscriber implements ISubscriber {
     return Math.pow(2, 8 * stock.BYTES_PER_ELEMENT)
   }
   
-  handle(event: MachineRefillEvent): void {
+  handle(event: IMachineRefillEvent): void {
     const theMachine = this.machines.find((machine) => machine.id === event.machineId())
     if (theMachine) {
     

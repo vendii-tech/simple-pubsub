@@ -17,3 +17,5 @@ export class MachineSaleEvent implements IEvent {
       return EventType.SALE;
     }
   }
+
+export interface IMachineSaleEvent extends MachineSaleEvent {}

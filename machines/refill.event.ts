@@ -1,5 +1,5 @@
 import { EventType } from '../enums/event.types';
-import { IEvent } from '../interfaces/index'
+import { IEvent } from '../interfaces/event'
 
 export class MachineRefillEvent implements IEvent {
     constructor(private readonly _refill: number, private readonly _machineId: string) {}
@@ -17,3 +17,4 @@ export class MachineRefillEvent implements IEvent {
     }
   }
   
+export interface IMachineRefillEvent extends MachineRefillEvent {}

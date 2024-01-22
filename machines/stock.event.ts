@@ -1,5 +1,5 @@
 import { EventType } from '../enums/event.types';
-import { IEvent } from '../interfaces/index'
+import { IEvent } from '../interfaces/event'
 
 export class MachineStockEvent implements IEvent {
     constructor(private readonly _machineId: string) {}
@@ -12,4 +12,5 @@ export class MachineStockEvent implements IEvent {
       return EventType.STOCK;
     }
   }
-  
+
+export interface IMachineStockEvent extends MachineStockEvent {}

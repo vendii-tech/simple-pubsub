@@ -1,4 +1,4 @@
-import { IEvent, IPublishSubscribeService, ISubscriber } from './interfaces/index'
+import { IEvent } from './interfaces/event'
 import { MachineSaleEvent } from './machines/sale.event'
 import { MachineRefillEvent } from './machines/refill.event'
 import { Machine } from './machines/data'
@@ -13,7 +13,6 @@ const randomMachine = (): string => {
     return '002';
   }
   return '003';
-
 }
 
 const eventGenerator = (): IEvent => {

@@ -1,6 +1,6 @@
 import { ISubscriber } from '../interfaces/subscriber'
 import { Machine } from '../machines/data'
-import { MachineStockEvent } from './stock.event'
+import { IMachineStockEvent } from './stock.event'
 
 export class MachineStockSubscriber implements ISubscriber {
   public machines: Machine[];
@@ -13,7 +13,7 @@ export class MachineStockSubscriber implements ISubscriber {
     return Atomics.load(stock, 0) < 3
   }
 
-  handle(event: MachineStockEvent): void {
+  handle(event: IMachineStockEvent): void {
     const theMachine = this.machines.find((machine) => machine.id === event.machineId())
     if (theMachine) {
       

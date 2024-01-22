@@ -1,4 +1,6 @@
-import { IPublishSubscribeService, ISubscriber, IEvent } from './interfaces/index'
+import { IEvent } from './interfaces/event'
+import { IPublishSubscribeService } from './interfaces/publish.subscribe.service'
+import { ISubscriber } from './interfaces/subscriber'
 import { EventType } from './enums/event.types'
 import { MachineRefillSubscriber } from './machines/refill.subscriber'
 import { MachineSaleSubscriber } from './machines/sale.subscriber'
