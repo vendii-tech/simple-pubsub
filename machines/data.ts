@@ -6,7 +6,7 @@ export class Machine {
   
     constructor (id: string) {
       this.id = id;
-      Atomics.store(this.stockLevel, 0, 10)
+      Atomics.store(this.stockLevel, 0, 3)
     }
   }
   

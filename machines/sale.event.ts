@@ -1,5 +1,5 @@
 import { IEvent } from '../interfaces/event'
-
+import { EventType } from '../enums/event.types'
 
 // implementations
 export class MachineSaleEvent implements IEvent {
@@ -14,6 +14,6 @@ export class MachineSaleEvent implements IEvent {
     }
   
     type(): string {
-      return 'sale';
+      return EventType.SALE;
     }
   }

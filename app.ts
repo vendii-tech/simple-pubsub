@@ -2,8 +2,8 @@ import { IEvent, IPublishSubscribeService, ISubscriber } from './interfaces/inde
 import { MachineSaleEvent } from './machines/sale.event'
 import { MachineRefillEvent } from './machines/refill.event'
 import { Machine } from './machines/data'
-import { MachineSaleSubscriber } from './machines/sale.subscriber'
-import { MachineRefillSubscriber } from './machines/refill.subscriber'
+import PubSubService from './pub-sub.service'
+
 // helpers
 const randomMachine = (): string => {
   const random = Math.random() * 3;
@@ -26,51 +26,16 @@ const eventGenerator = (): IEvent => {
   return new MachineRefillEvent(refillQty, randomMachine());
 }
 
-class PubSubService implements IPublishSubscribeService {
-
-  subscribers: Record<string, ISubscriber>
-
-  constructor() {
-    this.subscribers = Object.create({})
-  }
-
-  publish (event: IEvent): void {
-    this.subscribers[event.type()] ? this.subscribers[event.type()].handle(event) : undefined
-  }
-
-  subscribe (type: string, handler: ISubscriber): void {
-    this.subscribers[type] = handler
-  }
-
-  unsubscribe(type: string): void {
-    delete this.subscribers[type]
-  }
-
-}
-
 
 // program
 (async () => {
   // create 3 machines with a quantity of 10 stock
   const machines: Machine[] = [ new Machine('001'), new Machine('002'), new Machine('003') ];
 
-  // create a machine sale event subscriber. inject the machines (all subscribers should do this)
-  const saleSubscriber = new MachineSaleSubscriber(machines);
-  const refillSubscriber = new MachineRefillSubscriber(machines)
-
-  // create the PubSub service
-  const pubSubService: IPublishSubscribeService = new PubSubService() as unknown as IPublishSubscribeService; // implement and fix this
-
-  pubSubService.subscribe('sale', saleSubscriber)
-  pubSubService.subscribe('refill', refillSubscriber)
-
-  // pubSubService.unsubscribe('sale')
-
+  const pubSubService = PubSubService(machines)
   // create 5 random events
   const events = [1,2,3,4,5].map(i => eventGenerator());
 
   // publish the events
   events.map(pubSubService.publish.bind(pubSubService));
-
-  console.log(machines)
 })();

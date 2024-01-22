@@ -1,3 +1,4 @@
+import { EventType } from '../enums/event.types';
 import { IEvent } from '../interfaces/index'
 
 export class MachineRefillEvent implements IEvent {
@@ -12,7 +13,7 @@ export class MachineRefillEvent implements IEvent {
     }
   
     type(): string {
-      return 'refill';
+      return EventType.REFILL;
     }
   }
   
