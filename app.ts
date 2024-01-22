@@ -3,8 +3,7 @@ import { MachineSaleEvent } from './machines/sale.event'
 import { MachineRefillEvent } from './machines/refill.event'
 import { Machine } from './machines/data'
 import { MachineSaleSubscriber } from './machines/sale.subscriber'
-
-
+import { MachineRefillSubscriber } from './machines/refill.subscriber'
 // helpers
 const randomMachine = (): string => {
   const random = Math.random() * 3;
@@ -29,11 +28,23 @@ const eventGenerator = (): IEvent => {
 
 class PubSubService implements IPublishSubscribeService {
 
-  constructor() {}
+  subscribers: Record<string, ISubscriber>
 
-  publish (event: IEvent): void {}
+  constructor() {
+    this.subscribers = Object.create({})
+  }
 
-  subscribe (type: string, handler: ISubscriber): void {}
+  publish (event: IEvent): void {
+    this.subscribers[event.type()] ? this.subscribers[event.type()].handle(event) : undefined
+  }
+
+  subscribe (type: string, handler: ISubscriber): void {
+    this.subscribers[type] = handler
+  }
+
+  unsubscribe(type: string): void {
+    delete this.subscribers[type]
+  }
 
 }
 
@@ -45,13 +56,21 @@ class PubSubService implements IPublishSubscribeService {
 
   // create a machine sale event subscriber. inject the machines (all subscribers should do this)
   const saleSubscriber = new MachineSaleSubscriber(machines);
+  const refillSubscriber = new MachineRefillSubscriber(machines)
 
   // create the PubSub service
   const pubSubService: IPublishSubscribeService = new PubSubService() as unknown as IPublishSubscribeService; // implement and fix this
+
+  pubSubService.subscribe('sale', saleSubscriber)
+  pubSubService.subscribe('refill', refillSubscriber)
+
+  // pubSubService.unsubscribe('sale')
 
   // create 5 random events
   const events = [1,2,3,4,5].map(i => eventGenerator());
 
   // publish the events
-  events.map(pubSubService.publish);
+  events.map(pubSubService.publish.bind(pubSubService));
+
+  console.log(machines)
 })();

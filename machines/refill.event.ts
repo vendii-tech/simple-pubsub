@@ -4,11 +4,15 @@ export class MachineRefillEvent implements IEvent {
     constructor(private readonly _refill: number, private readonly _machineId: string) {}
   
     machineId(): string {
-      throw new Error("Method not implemented.");
+      return this._machineId;
+    }
+
+    getRefilledQuantity(): number {
+      return this._refill
     }
   
     type(): string {
-      throw new Error("Method not implemented.");
+      return 'refill';
     }
   }
   
