@@ -13,11 +13,16 @@ export class MachineSaleSubscriber implements ISubscriber {
 
   handle(event: MachineSaleEvent): void {
     const theMachine = this.machines.find((machine) => machine.id === event.machineId())
-    
+
     if (theMachine) {
-      Atomics.sub(theMachine.stockLevel, 0, event.getSoldQuantity())
-      
-      this.pubSubService.publish(new MachineStockEvent(theMachine.id))
+    
+      const current = Atomics.load(theMachine.stockLevel, 0)
+      const limit = 0
+      if ((current - event.getSoldQuantity()) > limit) {
+        Atomics.sub(theMachine.stockLevel, 0, event.getSoldQuantity())
+      } 
+
+      this.pubSubService.publish(new MachineStockEvent(theMachine.id));
     }
   }
 }

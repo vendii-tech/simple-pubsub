@@ -9,12 +9,19 @@ export class MachineStockSubscriber implements ISubscriber {
     this.machines = machines; 
   }
 
+  protected isTooLow(stock: Uint16Array): boolean {
+    return Atomics.load(stock, 0) < 3
+  }
+
   handle(event: MachineStockEvent): void {
     const theMachine = this.machines.find((machine) => machine.id === event.machineId())
-    if (theMachine && theMachine.stockLevel[0] < 3) {
-      console.log(theMachine.id, ' has low stock level')
-    } else if(theMachine && theMachine.stockLevel[0] >= 3 ) {
-      console.log(theMachine.id, ' has ok stock level')
+    if (theMachine) {
+      
+      if (this.isTooLow(theMachine.stockLevel)) {
+        console.log(theMachine.id, ' has low stock level')
+      } else {
+        console.log(theMachine.id, ' has ok stock level')
+      }
     }
   }
 }

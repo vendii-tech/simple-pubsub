@@ -1,12 +1,12 @@
 
 // objects
 export class Machine {
-    public stockLevel = new Uint8Array(new SharedArrayBuffer(1))
+    public stockLevel = new Uint16Array(new SharedArrayBuffer(2))
     public id: string;
   
     constructor (id: string) {
       this.id = id;
-      Atomics.store(this.stockLevel, 0, 3)
+      Atomics.store(this.stockLevel, 0, 1)
     }
   }
   
