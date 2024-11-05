@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "ts-node": "^10.9.2"
+  },
+  "volta": {
+    "node": "22.11.0"
+  }
+}
