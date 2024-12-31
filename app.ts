@@ -5,13 +5,13 @@ interface IEvent {
 }
 
 interface ISubscriber {
-  handle(event: IEvent): void;
+  handle(event: IEvent,subscribeService: IPublishSubscribeService): void;
 }
 
 interface IPublishSubscribeService {
   publish (event: IEvent): void;
   subscribe (type: string, handler: ISubscriber): void;
-  // unsubscribe ( /* Question 2 - build this feature */ );
+  unsubscribe (type: string): void;
 }
 
 
@@ -36,40 +36,124 @@ class MachineRefillEvent implements IEvent {
   constructor(private readonly _refill: number, private readonly _machineId: string) {}
 
   machineId(): string {
-    throw new Error("Method not implemented.");
+    return this._machineId;
   }
 
   type(): string {
-    throw new Error("Method not implemented.");
+    return 'buy'
+  }
+
+  getStockQuantity(): number {
+    return this._refill;
   }
 }
 
-class MachineSaleSubscriber implements ISubscriber {
-  public machines: Machine[];
+class LowStockWarningEvent implements IEvent {
+  constructor(private readonly _current: number, private readonly _machineId: string) {}
 
-  constructor (machines: Machine[]) {
-    this.machines = machines; 
+  machineId(): string {
+    return this._machineId;
   }
 
-  handle(event: MachineSaleEvent): void {
-    this.machines[2].stockLevel -= event.getSoldQuantity();
+  type(): string {
+    return "lowStockWarning";
+  }
+
+  getMessage(): string {
+    return "[Low] Current stock of machine " + this._machineId + " has " + this._current;
+  }
+
+}
+
+class StockLevelOkEvent implements IEvent {
+  constructor(private readonly _current: number, private readonly _machineId: string) {}
+
+  machineId(): string {
+    return this._machineId;
+  }
+
+  type(): string {
+    return "stockLevelOkEvent";
+  }
+
+  getMessage(): string {
+    return "[Ok] Current stock of machine " + this._machineId + " has " + this._current;
+  }
+
+}
+class MachineSaleSubscriber implements ISubscriber {
+  public machines: Map<string, Machine> = new Map<string, Machine>();
+
+  constructor (machines: Machine[]) {
+    machines.forEach(machine => {
+      this.machines.set(machine.id, machine);
+    });
+  }
+
+  handle(event: MachineSaleEvent,service: IPublishSubscribeService): void {
+    this.machines.get(event.machineId()).stockLevel -= event.getSoldQuantity();
+    if (this.machines.get(event.machineId()).stockLevel < 3 && !this.machines.get(event.machineId()).getIsLowerThanThree()) {
+      this.machines.get(event.machineId()).setIsLowerThanThree(true);
+      service.publish(new LowStockWarningEvent(this.machines.get(event.machineId()).stockLevel, event.machineId()));
+    }
   }
 }
 
 class MachineRefillSubscriber implements ISubscriber {
-  handle(event: IEvent): void {
-    throw new Error("Method not implemented.");
+  public machines: Map<string, Machine> = new Map<string, Machine>();
+
+  constructor (machines: Machine[]) {
+    machines.forEach(machine => {
+      this.machines.set(machine.id, machine);
+    });
+  }
+
+  handle(event: MachineRefillEvent,service: IPublishSubscribeService): void {
+    this.machines.get(event.machineId()).stockLevel += event.getStockQuantity();
+    if (this.machines.get(event.machineId()).stockLevel >= 3 && this.machines.get(event.machineId()).getIsLowerThanThree()) {
+      this.machines.get(event.machineId()).setIsLowerThanThree(false);
+      service.publish(new StockLevelOkEvent(this.machines.get(event.machineId()).stockLevel, event.machineId()));
+    }
   }
 }
 
+class StockWarningSubscriber implements ISubscriber {
+  handle(event: LowStockWarningEvent | StockLevelOkEvent, service: IPublishSubscribeService): void {
+    console.log(event.getMessage());
+  }
+}
 
+class IService implements IPublishSubscribeService {
+  public subHandlers: Map<string, ISubscriber> = new Map<string, ISubscriber>();
+
+  publish(event: IEvent): void {
+    if (this.subHandlers.has(event.type())){
+      this.subHandlers.get(event.type()).handle(event, this);
+    }
+  }
+
+  subscribe(type: string, handler: ISubscriber): void {
+    this.subHandlers.set(type, handler);
+  }
+
+  unsubscribe(type: string): void {
+    this.subHandlers.delete(type);
+  }
+
+}
 // objects
 class Machine {
   public stockLevel = 10;
   public id: string;
-
+  private isLowerThanThree: boolean = false;
   constructor (id: string) {
     this.id = id;
+  }
+  setIsLowerThanThree = (isLowerThanThree: boolean) => {
+    this.isLowerThanThree = isLowerThanThree;
+  }
+  getIsLowerThanThree() {
+    return this.isLowerThanThree;
   }
 }
 
@@ -98,19 +182,27 @@ const eventGenerator = (): IEvent => {
 
 
 // program
+// @ts-ignore
 (async () => {
   // create 3 machines with a quantity of 10 stock
   const machines: Machine[] = [ new Machine('001'), new Machine('002'), new Machine('003') ];
 
   // create a machine sale event subscriber. inject the machines (all subscribers should do this)
   const saleSubscriber = new MachineSaleSubscriber(machines);
+  const buySubscriber = new MachineRefillSubscriber(machines);
+  const warningSubscriber = new StockWarningSubscriber();
 
   // create the PubSub service
-  const pubSubService: IPublishSubscribeService = null as unknown as IPublishSubscribeService; // implement and fix this
+  const pubSubService: IPublishSubscribeService = new IService(); // implement and fix this
+  pubSubService.subscribe('sale',saleSubscriber);
+  pubSubService.subscribe('buy',buySubscriber);
+  pubSubService.subscribe('stockLevelOkEvent',warningSubscriber);
+  pubSubService.subscribe('lowStockWarning',warningSubscriber);
+
 
   // create 5 random events
-  const events = [1,2,3,4,5].map(i => eventGenerator());
+  const events = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22].map(i => eventGenerator());
 
   // publish the events
-  events.map(pubSubService.publish);
+  events.map(event => pubSubService.publish(event));
 })();
