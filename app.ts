@@ -16,7 +16,7 @@ interface IEvent {
 }
 
 interface ISubscriber {
-  getMachine(id: string): Machine | undefined;
+  getMachine(id: string): Maybe<Machine>;
   handle(event: IEvent): void;
 }
 
@@ -28,7 +28,7 @@ interface IPublishSubscribeService {
 
 interface Repository<T> {
   create(args: T): void;
-  findById(id: string): T | undefined;
+  findById(id: string): Maybe<Machine>;
   findAll(): T[];
   remove(id: string): void;
   update(args: T): void;
@@ -98,14 +98,11 @@ class MachineStockLevelOkEvent extends BaseEvent {
 
 abstract class BaseSubscriber implements ISubscriber {
   private _machineRepository: MachineRepository;
-  /**
-   *
-   */
   constructor(machineRepository: MachineRepository) {
     this._machineRepository = machineRepository;
   }
 
-  getMachine(id: string): Machine | undefined {
+  getMachine(id: string): Maybe<Machine> {
     return this._machineRepository.findById(id);
   }
 
@@ -117,9 +114,9 @@ class MachineSaleSubscriber extends BaseSubscriber {
     super(machineRepository);
   }
   handle(event: MachineSaleEvent): void {
-    const machine = this.getMachine(event.machineId());
+    const machineMaybe = this.getMachine(event.machineId());
 
-    if (machine) {
+    machineMaybe.map((machine) => {
       if (machine.stockLevel < event.getSoldQuantity()) {
         console.error(
           `Machine ${machine?.id} stock level is less than quantity sold`
@@ -127,13 +124,12 @@ class MachineSaleSubscriber extends BaseSubscriber {
         return;
       }
       machine.stockLevel -= event.getSoldQuantity();
-
       if (machine.stockLevel < LEVEL_STOCK_THRESHOLD) {
         const pubSubService: IPublishSubscribeService =
           PublishSubscribeServiceSingleton.getInstance();
         pubSubService.publish(new MachineLowStockWarningEvent(machine.id));
       }
-    }
+    });
   }
 }
 
@@ -143,22 +139,16 @@ class MachineRefillSubscriber extends BaseSubscriber {
   }
 
   handle(event: MachineRefillEvent): void {
-    const machine = this.getMachine(event.machineId());
-
-    if (machine) {
-      const isStockLevelBelowThreshold =
-        machine.stockLevel < LEVEL_STOCK_THRESHOLD;
+    const machineMaybe = this.getMachine(event.machineId());
+    machineMaybe.map((machine) => {
+      const wasBelowThreshold = machine.stockLevel < LEVEL_STOCK_THRESHOLD;
       machine.stockLevel += event.getRefillQuantity();
-
-      if (
-        isStockLevelBelowThreshold &&
-        machine.stockLevel >= LEVEL_STOCK_THRESHOLD
-      ) {
+      if (wasBelowThreshold && machine.stockLevel >= LEVEL_STOCK_THRESHOLD) {
         const pubSubService: IPublishSubscribeService =
           PublishSubscribeServiceSingleton.getInstance();
         pubSubService.publish(new MachineStockLevelOkEvent(machine.id));
       }
-    }
+    });
   }
 }
 
@@ -167,12 +157,12 @@ class MachineLowStockWarningSubscriber extends BaseSubscriber {
     super(machineRepository);
   }
   handle(event: MachineLowStockWarningEvent): void {
-    const machine = this.getMachine(event.machineId());
-
-    if (machine)
+    const mayBeMachine = this.getMachine(event.machineId());
+    mayBeMachine.map((machine) => {
       console.warn(
         `Machine ${machine.id} have lower stock level (${machine.stockLevel})`
       );
+    });
   }
 }
 
@@ -182,11 +172,13 @@ class MachineStockLevelOkSubscriber extends BaseSubscriber {
   }
 
   handle(event: MachineLowStockWarningEvent): void {
-    const machine = this.getMachine(event.machineId());
-    if (machine)
-      console.warn(
+    const mayBeMachine = this.getMachine(event.machineId());
+
+    mayBeMachine.map((machine) => {
+      console.info(
         `Machine ${machine.id} have stock level ok (${machine.stockLevel})`
       );
+    });
   }
 }
 
@@ -226,20 +218,49 @@ class MachineRepository implements Repository<Machine> {
       throw new Error(`Machine ${machine.id} is already created`);
     this._machines.set(machine.id, machine);
   }
-  findById(id: string): Machine | undefined {
-    return this._machines.get(id);
+  findById(id: string): Maybe<Machine> {
+    const machine = this._machines.get(id);
+    return machine ? Maybe.some(machine) : Maybe.none();
   }
+
   findAll(): Machine[] {
     return Array.from(this._machines.values());
   }
   remove(id: string): void {
-    if (this._machines.get(id)) throw new Error(`Machine ${id} is not found`);
+    if (!this._machines.get(id)) throw new Error(`Machine ${id} is not found`);
     this._machines.delete(id);
   }
   update(machine: Machine): void {
-    if (this._machines.get(machine.id))
+    if (!this._machines.get(machine.id))
       throw new Error(`Machine ${machine.id} is not found`);
     this._machines.set(machine.id, machine);
+  }
+}
+
+class Maybe<T> {
+  private constructor(private readonly value: T | null) {}
+
+  static some<T>(value: T): Maybe<T> {
+    return new Maybe(value);
+  }
+
+  static none<T>(): Maybe<T> {
+    return new Maybe<T>(null);
+  }
+
+  isSome(): boolean {
+    return this.value !== null;
+  }
+
+  isNone(): boolean {
+    return this.value === null;
+  }
+
+  map<U>(fn: (value: T) => U): Maybe<U> {
+    if (this.value === null) {
+      return Maybe.none<U>();
+    }
+    return Maybe.some(fn(this.value));
   }
 }
 
@@ -278,11 +299,15 @@ const randomMachine = (): string => {
 const eventGenerator = (): IEvent => {
   const random = Math.random();
   if (random < 0.5) {
-    const saleQty = Math.random() < 0.5 ? 5 : 10; // 1 or 2
+    const saleQty = Math.random() < 0.5 ? 1 : 2; // 1 or 2
     return new MachineSaleEvent(saleQty, randomMachine());
   }
   const refillQty = Math.random() < 0.5 ? 3 : 5; // 3 or 5
   return new MachineRefillEvent(refillQty, randomMachine());
+};
+
+const logMachine = (prefix: string, machine: Machine) => {
+  console.log(prefix, machine);
 };
 
 // program
