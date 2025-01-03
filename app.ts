@@ -1,20 +1,22 @@
+// const
+const LEVEL_STOCK_THRESHOLD = 3;
 // enums
-
 enum MachineEventType {
   SALE = "sale",
   REFILL = "refill",
+  LOW_STOCK_WARNING = "low_stock_warning",
+  STOCK_LEVEL_OK = "stock_level_ok",
 }
 
 // interfaces
+
 interface IEvent {
-  type(): string;
   machineId(): string;
+  type(): string;
 }
 
-interface IBaseSubscriber {
-  getMachine(id: string): Machine | undefined;
-}
 interface ISubscriber {
+  getMachine(id: string): Machine | undefined;
   handle(event: IEvent): void;
 }
 
@@ -24,15 +26,31 @@ interface IPublishSubscribeService {
   unsubscribe(type: string, handler: ISubscriber): void;
 }
 
+interface Repository<T> {
+  create(args: T): void;
+  findById(id: string): T | undefined;
+  findAll(): T[];
+  remove(id: string): void;
+  update(args: T): void;
+}
+
 // implementations
-class MachineSaleEvent implements IEvent {
-  constructor(
-    private readonly _sold: number,
-    private readonly _machineId: string
-  ) {}
+
+abstract class BaseEvent implements IEvent {
+  readonly _machineId: string;
+  constructor(_machineId: string) {
+    this._machineId = _machineId;
+  }
 
   machineId(): string {
     return this._machineId;
+  }
+
+  abstract type(): string;
+}
+class MachineSaleEvent extends BaseEvent {
+  constructor(private readonly _sold: number, _machineId: string) {
+    super(_machineId);
   }
 
   getSoldQuantity(): number {
@@ -44,14 +62,9 @@ class MachineSaleEvent implements IEvent {
   }
 }
 
-class MachineRefillEvent implements IEvent {
-  constructor(
-    private readonly _refill: number,
-    private readonly _machineId: string
-  ) {}
-
-  machineId(): string {
-    return this._machineId;
+class MachineRefillEvent extends BaseEvent {
+  constructor(private readonly _refill: number, _machineId: string) {
+    super(_machineId);
   }
 
   getRefillQuantity(): number {
@@ -63,53 +76,130 @@ class MachineRefillEvent implements IEvent {
   }
 }
 
-class BaseSubscriber implements IBaseSubscriber {
-  protected machines: Machine[];
-
-  constructor(machines: Machine[]) {
-    this.machines = machines;
+class MachineLowStockWarningEvent extends BaseEvent {
+  constructor(_machineId: string) {
+    super(_machineId);
   }
 
-  getMachine(id: string): Machine | undefined {
-    return this.machines.find((m) => m.id === id);
+  type(): string {
+    return MachineEventType.LOW_STOCK_WARNING;
   }
 }
 
-class MachineSaleSubscriber extends BaseSubscriber implements ISubscriber {
-  constructor(machines: Machine[]) {
-    super(machines);
+class MachineStockLevelOkEvent extends BaseEvent {
+  constructor(_machineId: string) {
+    super(_machineId);
+  }
+
+  type(): string {
+    return MachineEventType.STOCK_LEVEL_OK;
+  }
+}
+
+abstract class BaseSubscriber implements ISubscriber {
+  private _machineRepository: MachineRepository;
+  /**
+   *
+   */
+  constructor(machineRepository: MachineRepository) {
+    this._machineRepository = machineRepository;
+  }
+
+  getMachine(id: string): Machine | undefined {
+    return this._machineRepository.findById(id);
+  }
+
+  abstract handle(event: IEvent): void;
+}
+
+class MachineSaleSubscriber extends BaseSubscriber {
+  constructor(machineRepository: MachineRepository) {
+    super(machineRepository);
   }
   handle(event: MachineSaleEvent): void {
     const machine = this.getMachine(event.machineId());
-    logMachine("before", machine);
 
     if (machine) {
       if (machine.stockLevel < event.getSoldQuantity()) {
         console.error(
-          `Machine ${machine?.id} stock level less than sold quantity`
+          `Machine ${machine?.id} stock level is less than quantity sold`
         );
         return;
       }
       machine.stockLevel -= event.getSoldQuantity();
+
+      if (machine.stockLevel < LEVEL_STOCK_THRESHOLD) {
+        const pubSubService: IPublishSubscribeService =
+          PublishSubscribeServiceSingleton.getInstance();
+        pubSubService.publish(new MachineLowStockWarningEvent(machine.id));
+      }
     }
-    logMachine("after", machine);
   }
 }
 
-class MachineRefillSubscriber extends BaseSubscriber implements ISubscriber {
-  constructor(machines: Machine[]) {
-    super(machines);
+class MachineRefillSubscriber extends BaseSubscriber {
+  constructor(machineRepository: MachineRepository) {
+    super(machineRepository);
   }
+
   handle(event: MachineRefillEvent): void {
     const machine = this.getMachine(event.machineId());
-    logMachine("before", machine);
-    if (machine) machine.stockLevel += event.getRefillQuantity();
-    logMachine("after", machine);
+
+    if (machine) {
+      const isStockLevelBelowThreshold =
+        machine.stockLevel < LEVEL_STOCK_THRESHOLD;
+      machine.stockLevel += event.getRefillQuantity();
+
+      if (
+        isStockLevelBelowThreshold &&
+        machine.stockLevel >= LEVEL_STOCK_THRESHOLD
+      ) {
+        const pubSubService: IPublishSubscribeService =
+          PublishSubscribeServiceSingleton.getInstance();
+        pubSubService.publish(new MachineStockLevelOkEvent(machine.id));
+      }
+    }
   }
 }
 
-class PublishSubscribeService implements IPublishSubscribeService {
+class MachineLowStockWarningSubscriber extends BaseSubscriber {
+  constructor(machineRepository: MachineRepository) {
+    super(machineRepository);
+  }
+  handle(event: MachineLowStockWarningEvent): void {
+    const machine = this.getMachine(event.machineId());
+
+    if (machine)
+      console.warn(
+        `Machine ${machine.id} have lower stock level (${machine.stockLevel})`
+      );
+  }
+}
+
+class MachineStockLevelOkSubscriber extends BaseSubscriber {
+  constructor(machineRepository: MachineRepository) {
+    super(machineRepository);
+  }
+
+  handle(event: MachineLowStockWarningEvent): void {
+    const machine = this.getMachine(event.machineId());
+    if (machine)
+      console.warn(
+        `Machine ${machine.id} have stock level ok (${machine.stockLevel})`
+      );
+  }
+}
+
+class PublishSubscribeServiceSingleton implements IPublishSubscribeService {
+  private static _instance: PublishSubscribeServiceSingleton;
   private _subscribers: Map<string, ISubscriber[]> = new Map();
+
+  static getInstance() {
+    return (
+      this._instance ||
+      (this._instance = new PublishSubscribeServiceSingleton())
+    );
+  }
 
   publish(event: IEvent): void {
     const subscribers = this._subscribers.get(event.type()) || [];
@@ -129,13 +219,48 @@ class PublishSubscribeService implements IPublishSubscribeService {
   }
 }
 
+class MachineRepository implements Repository<Machine> {
+  private _machines: Map<string, Machine> = new Map();
+  create(machine: Machine) {
+    if (this._machines.get(machine.id))
+      throw new Error(`Machine ${machine.id} is already created`);
+    this._machines.set(machine.id, machine);
+  }
+  findById(id: string): Machine | undefined {
+    return this._machines.get(id);
+  }
+  findAll(): Machine[] {
+    return Array.from(this._machines.values());
+  }
+  remove(id: string): void {
+    if (this._machines.get(id)) throw new Error(`Machine ${id} is not found`);
+    this._machines.delete(id);
+  }
+  update(machine: Machine): void {
+    if (this._machines.get(machine.id))
+      throw new Error(`Machine ${machine.id} is not found`);
+    this._machines.set(machine.id, machine);
+  }
+}
+
 // objects
 class Machine {
-  public stockLevel = 10;
-  public id: string;
+  private _stockLevel = 10;
 
-  constructor(id: string) {
-    this.id = id;
+  constructor(private readonly _id: string) {
+    this._id = _id;
+  }
+
+  get id(): string {
+    return this._id;
+  }
+
+  get stockLevel(): number {
+    return this._stockLevel;
+  }
+
+  set stockLevel(stockLevel) {
+    this._stockLevel = stockLevel;
   }
 }
 
@@ -153,21 +278,11 @@ const randomMachine = (): string => {
 const eventGenerator = (): IEvent => {
   const random = Math.random();
   if (random < 0.5) {
-    const saleQty = Math.random() < 0.5 ? 10 : 20; // 1 or 2
+    const saleQty = Math.random() < 0.5 ? 5 : 10; // 1 or 2
     return new MachineSaleEvent(saleQty, randomMachine());
   }
   const refillQty = Math.random() < 0.5 ? 3 : 5; // 3 or 5
   return new MachineRefillEvent(refillQty, randomMachine());
-};
-
-const logEvent = (events: IEvent[]) => {
-  events.forEach((event) => {
-    console.log(event);
-  });
-};
-
-const logMachine = (prefix: string, machine?: Machine) => {
-  console.log(prefix, machine);
 };
 
 // program
@@ -179,19 +294,37 @@ const logMachine = (prefix: string, machine?: Machine) => {
     new Machine("003"),
   ];
 
+  const machineRepository = new MachineRepository();
+  machines.forEach((m) => machineRepository.create(m));
+
   // create a machine sale event subscriber. inject the machines (all subscribers should do this)
-  const saleSubscriber = new MachineSaleSubscriber(machines);
-  const refillSubscriber = new MachineRefillSubscriber(machines);
+  const saleSubscriber = new MachineSaleSubscriber(machineRepository);
+  const refillSubscriber = new MachineRefillSubscriber(machineRepository);
+  const lowStockWarningSubscriber = new MachineLowStockWarningSubscriber(
+    machineRepository
+  );
+  const stockLevelOkSubscriber = new MachineStockLevelOkSubscriber(
+    machineRepository
+  );
 
   // create the PubSub service
-  const pubSubService: IPublishSubscribeService = new PublishSubscribeService();
+  const pubSubService: IPublishSubscribeService =
+    PublishSubscribeServiceSingleton.getInstance();
 
   pubSubService.subscribe(MachineEventType.SALE, saleSubscriber);
   pubSubService.subscribe(MachineEventType.REFILL, refillSubscriber);
+  pubSubService.subscribe(
+    MachineEventType.LOW_STOCK_WARNING,
+    lowStockWarningSubscriber
+  );
+  pubSubService.subscribe(
+    MachineEventType.STOCK_LEVEL_OK,
+    stockLevelOkSubscriber
+  );
 
   // create 5 random events
   const events = [1, 2, 3, 4, 5].map((i) => eventGenerator());
-  logEvent(events);
+
   // publish the events
   events.forEach((e) => pubSubService.publish(e));
 })();
