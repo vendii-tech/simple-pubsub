@@ -18,3 +18,9 @@ Additional credit for using useful abstractions that add to the codebase. This i
 (iii) and more
 
 Please share your work using a GitHub repository with @proftom and @Gnoyoyo.
+
+
+
+### Implement with 
+ESLint with the @typescript-eslint plugin for code quality and bug detection, and Prettier for consistent code formatting
+Ensures easy merging when working in teams
