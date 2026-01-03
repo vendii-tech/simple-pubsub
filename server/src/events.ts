@@ -1,7 +1,14 @@
-import { IEvent } from './pubsub';
 import { validMachineStatus } from './utils';
 
+export interface IEvent {
+    type(): string;
+    machineId(): string;
+    eventUUID: string;
+}
+
 export class MachineSaleEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
+
     constructor(
         private readonly _machineId: string,
         private readonly _sold: number,
@@ -31,6 +38,8 @@ export class MachineSaleEvent implements IEvent {
 }
 
 export class MachineRefillEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
+
     constructor(
         private readonly _machineId: string,
         private readonly _refill: number,
@@ -60,6 +69,8 @@ export class MachineRefillEvent implements IEvent {
 }
 
 export class LowStockWarningEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
+
     constructor(private readonly _machineId: string) {}
     type() {
         return 'machine.stock.low';
@@ -70,6 +81,8 @@ export class LowStockWarningEvent implements IEvent {
 }
 
 export class StockLevelOkEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
+
     constructor(private readonly _machineId: string) {}
     type() {
         return 'machine.stock.ok';
@@ -80,6 +93,8 @@ export class StockLevelOkEvent implements IEvent {
 }
 
 export class MachineCreatedEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
+
     constructor(private readonly _machineId: string) {}
 
     type() {
@@ -91,6 +106,7 @@ export class MachineCreatedEvent implements IEvent {
 }
 
 export class MachineDeletedEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
     constructor(private readonly _machineId: string) {}
 
     type(): string {
@@ -102,6 +118,7 @@ export class MachineDeletedEvent implements IEvent {
 }
 
 export class MachineStatusChangedEvent implements IEvent {
+    public readonly eventUUID = crypto.randomUUID();
     constructor(
         private readonly _machineId: string,
         private readonly _statusFlag: validMachineStatus,

@@ -29,8 +29,12 @@ export class MachineRepository {
 
     async findById(id: string): Promise<Maybe<Machine>> {
         const machine = this.machines.get(id);
-        if (machine) return Maybe.fromValue(new Machine(machine.id));
-        else return Maybe.none();
+        if (machine) {
+            const copy = new Machine(machine.id);
+            copy.stockLevel = machine.stockLevel;
+            copy.statusFlag = machine.statusFlag;
+            return Maybe.fromValue(copy);
+        } else return Maybe.none();
     }
 
     async updateId(machine: Machine): Promise<void> {

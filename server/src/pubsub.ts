@@ -1,27 +1,25 @@
 import * as Events from './events';
 import { IMachineRepository, Machine } from './machine';
 
-export interface IEvent {
-    type(): string;
-    machineId(): string;
-}
-
 export interface ISubscriber {
-    handle(event: IEvent): Promise<void>;
+    handle(event: Events.IEvent): Promise<void>;
 }
 
 export interface IPublishSubscribeService {
-    publish(event: IEvent): Promise<void>;
+    publish(event: Events.IEvent): Promise<void>;
     subscribe(type: string, handler: ISubscriber): void;
     unsubscribe(type: string, handler: ISubscriber): void;
-    listTypes(): string[];
+    getTypes(): string[];
     printTypesAndSubscribers(): void;
 }
 
 export class PubSubService implements IPublishSubscribeService {
-    private subscribers: Map<string, ISubscriber[]> = new Map();
-    private eventQueue: IEvent[] = [];
+    public subscribers: Map<string, ISubscriber[]> = new Map();
+    private eventQueue: Events.IEvent[] = [];
     private isProcessing = false;
+
+    private processedEventsUUID: Map<string, boolean> = new Map();
+    private readonly MAX_HISTORY = 1000;
 
     subscribe(type: string, handler: ISubscriber): void {
         const handlers = this.subscribers.get(type) || [];
@@ -39,42 +37,55 @@ export class PubSubService implements IPublishSubscribeService {
         }
     }
 
-    async publish(event: IEvent): Promise<void> {
+    async publish(event: Events.IEvent): Promise<void> {
+        if (this.processedEventsUUID.has(event.eventUUID)) {
+            console.warn('Events has been processed already');
+            return;
+        }
+        this.processedEventsUUID.set(event.eventUUID, true);
+
+        if (this.processedEventsUUID.size > this.MAX_HISTORY) {
+            const oldestKey = this.processedEventsUUID.keys().next().value;
+            if (oldestKey) this.processedEventsUUID.delete(oldestKey);
+        }
+
         this.eventQueue.push(event);
 
         if (this.isProcessing) return;
 
         this.isProcessing = true;
+        try {
+            while (this.eventQueue.length > 0) {
+                const currentEvent = this.eventQueue.shift();
+                if (!currentEvent) continue;
 
-        while (this.eventQueue.length > 0) {
-            const currentEvent = this.eventQueue.shift();
-            if (!currentEvent) continue;
+                const handlers = this.subscribers.get(currentEvent.type());
+                if (handlers) {
+                    const handlersSnapshot = [...handlers];
 
-            const handlers = this.subscribers.get(currentEvent.type());
-            if (handlers) {
-                const handlersSnapshot = [...handlers];
-
-                for (const handler of handlersSnapshot) {
-                    await handler.handle(currentEvent);
+                    for (const handler of handlersSnapshot) {
+                        try {
+                            await handler.handle(currentEvent);
+                        } catch (err) {
+                            console.log(`Error handling event ${currentEvent.type()}:`, err);
+                        }
+                    }
                 }
             }
+        } finally {
+            this.isProcessing = false;
         }
-
-        this.isProcessing = false;
     }
 
-    listTypes(): string[] {
+    getTypes(): string[] {
         return Array.from(this.subscribers.keys());
     }
 
     printTypesAndSubscribers(): void {
         console.log('--- Active Subscriptions ---');
 
-        // Iterate over the Map entries
         for (const [type, handlers] of this.subscribers) {
-            // Map the array of objects to an array of class names
             const subscriberNames = handlers.map((handler) => handler.constructor.name).join(', ');
-
             console.log(`${type} | ${subscriberNames}`);
         }
 
@@ -87,7 +98,7 @@ export class MachineSaleSubscriber implements ISubscriber {
 
     constructor(private repo: IMachineRepository) {}
 
-    async handle(event: IEvent): Promise<void> {
+    async handle(event: Events.IEvent): Promise<void> {
         if (event instanceof Events.MachineSaleEvent) {
             const maybe = await this.repo.findById(event.machineId());
             if (maybe.isSome) {
@@ -104,7 +115,7 @@ export class MachineSaleSubscriber implements ISubscriber {
 export class MachineRefillSubscriber implements ISubscriber {
     constructor(private repo: IMachineRepository) {}
 
-    async handle(event: IEvent): Promise<void> {
+    async handle(event: Events.IEvent): Promise<void> {
         if (event instanceof Events.MachineRefillEvent) {
             const maybe = await this.repo.findById(event.machineId());
             if (maybe.isSome) {
@@ -132,7 +143,7 @@ export class StockLevelMonitorSubscriberPublisher implements ISubscriber {
         private pubsub: IPublishSubscribeService,
     ) {}
 
-    async handle(event: IEvent): Promise<void> {
+    async handle(event: Events.IEvent): Promise<void> {
         const LOW_STOCK_THRESHOLD = 3;
         if (
             event instanceof Events.MachineSaleEvent ||
@@ -162,7 +173,7 @@ export class StockLevelMonitorSubscriberPublisher implements ISubscriber {
 export class MachineStatusMonitorSubscriber implements ISubscriber {
     constructor(private repo: IMachineRepository) {}
 
-    async handle(event: IEvent): Promise<void> {
+    async handle(event: Events.IEvent): Promise<void> {
         if (event instanceof Events.MachineCreatedEvent) {
             const newMachine = new Machine(event.machineId());
 
