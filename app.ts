@@ -12,6 +12,7 @@ interface IPublishSubscribeService {
   publish (event: IEvent): void;
   subscribe (type: string, handler: ISubscriber): void;
   // unsubscribe ( /* Question 2 - build this feature */ );
+  unsubscribe (type: string, handler: ISubscriber) : void;
 }
 
 
@@ -32,17 +33,25 @@ class MachineSaleEvent implements IEvent {
   }
 }
 
+// add missing return
 class MachineRefillEvent implements IEvent {
   constructor(private readonly _refill: number, private readonly _machineId: string) {}
 
   machineId(): string {
-    throw new Error("Method not implemented.");
+    return this._machineId;
+  }
+
+  refill(): number{
+    return this._refill;
   }
 
   type(): string {
-    throw new Error("Method not implemented.");
+    return 'refill';
   }
 }
+
+//add new event here
+
 
 class MachineSaleSubscriber implements ISubscriber {
   public machines: Machine[];
@@ -57,8 +66,16 @@ class MachineSaleSubscriber implements ISubscriber {
 }
 
 class MachineRefillSubscriber implements ISubscriber {
-  handle(event: IEvent): void {
-    throw new Error("Method not implemented.");
+  //add machine in the same way
+  public machines: Machine[];
+
+  constructor (machines: Machine[]) {
+    this.machines = machines; 
+  }
+
+  //add handle event
+  handle(event: MachineRefillEvent): void {
+    this.machines[2].stockLevel +=  event.refill();
   }
 }
 
