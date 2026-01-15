@@ -1,0 +1,35 @@
+{
+  "name": "simple-pubsub",
+  "version": "1.0.0",
+  "description": "Instructions\r 1. Build the Publish-Subscribe mechanism. Allow ISubscriber objects to register against an concrete IPublishSubscribeService object for an event type. Implement the publish method so that when a publish event occurs, all subscribers of that the event type published will have a chance to handle the event. The subscribers should be working off a shared array of Machine objects, mutating them depending on the event received.\r 2. Now add the method 'unsubscribe' on IPublishSubscribeService to allow handlers to unsubscribe from events. You may change the existing method signatures.\r 3. Implement MachineRefillSubscriber. It will increase the stock quantity of the machine.\r 4. Let's add some new behaviour. If a machine stock levels drops below 3 a new Event, LowStockWarningEvent should be generated. When the stock levels hits 3 or above (because of a MachineRefillEvent), a StockLevelOkEvent should be generated.  For each machine, LowStockWarningEvent or StockLevelOkEvent should only fire one time when crossing the threshold of 3. You may want to introduce new subscribers (e.g. a new subscriber called StockWarningSubscriber). In fact you may change anything as long as the task is performed and you can justify your reasonings. Remember subscribers should be notified in the order that the events occured.",
+  "homepage": "https://github.com/YEONOIR/simple-pubsub#readme",
+  "bugs": {
+    "url": "https://github.com/YEONOIR/simple-pubsub/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YEONOIR/simple-pubsub.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "app.ts",
+  "scripts": {
+    "start": "npx ts-node app.ts"
+  },
+  "dependencies": {
+    "acorn": "^8.15.0",
+    "acorn-walk": "^8.3.4",
+    "arg": "^4.1.3",
+    "create-require": "^1.1.1",
+    "diff": "^4.0.2",
+    "make-error": "^1.3.6",
+    "undici-types": "^7.16.0",
+    "v8-compile-cache-lib": "^3.0.1",
+    "yn": "^3.1.1"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
